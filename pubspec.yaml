@@ -39,10 +39,13 @@ dependencies:
   flutter_bloc: ^8.1.2
   bloc: ^8.1.1
   http: ^0.13.5
-
+  
+#https://youtu.be/Mn254cnduOY?t=5403
+#flutter pub add --dev bloc_test- this way you dont ship the test with the flutter package
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  bloc_test: ^9.1.1  
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

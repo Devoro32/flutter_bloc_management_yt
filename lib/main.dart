@@ -2,13 +2,16 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:bloc/bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:testingbloc_course/bloc/bloc_actions.dart';
 
 //logging
 //https://youtu.be/Mn254cnduOY?t=4788
 import 'dart:developer' as devtools show log;
+
+import 'bloc/album_bloc.dart';
+import 'bloc/albums.dart';
 
 extension Log on Object {
   void log() => devtools.log(toString());
@@ -25,136 +28,23 @@ void main() {
     //Adding BlocProvider
     //https://youtu.be/Mn254cnduOY?t=3749
     home: BlocProvider(
-      create: (_) => PersonsBloc(),
+      create: (_) => AlbumBloc(),
       child: const HomePage(),
     ),
   ));
 }
 
-//https://youtu.be/Mn254cnduOY?t=2176
-//want to tell the bloc to load something
-@immutable
-abstract class LoadAction {
-  const LoadAction();
-}
-
-//https://youtu.be/Mn254cnduOY?t=2534
-//Define an action for loading persons
-
-@immutable
-class LoadPersonaAction implements LoadAction {
-  final PersonUrl url;
-  const LoadPersonaAction({required this.url}) : super();
-}
-
-//https://youtu.be/Mn254cnduOY?t=2431
-enum PersonUrl {
-  persons1,
-  persons2,
-}
-
-extension UrlString on PersonUrl {
-  String get urlString {
-    switch (this) {
-      case PersonUrl.persons1:
-        return 'https://jsonplaceholder.typicode.com/albums';
-      case PersonUrl.persons2:
-        return 'https://jsonplaceholder.typicode.com/albums';
-    }
-  }
-}
-
-//Progrm the person class
-//https://youtu.be/Mn254cnduOY?t=2650
-@immutable
-class Person {
-  final int userId;
-  final int id;
-  final String title;
-  //final String url;
-  //final String thumbnailUrl;
-
-  const Person({
-    required this.userId,
-    required this.id,
-    required this.title,
-    //required this.url,
-    //required this.thumbnailUrl,
-  });
-
-  Person.fromJson(Map<String, dynamic> json)
-      : userId = json['userId'] as int,
-        id = json['id'] as int,
-        title = json['title'] as String;
-  //url = json['url'] as String,
-  //thumbnailUrl = json['thumbnailUrl'] as String;
-
-//https://youtu.be/Mn254cnduOY?t=4869
-//put to test
-  @override
-  String toString() => 'Person (userId=$userId, id=$id, title =$title)';
-} //, url=$url,thumbnailUrl=$thumbnailUrl
-
 //https://youtu.be/Mn254cnduOY?t=2775
 //Download and parse JSON
-Future<Iterable<Person>> getPersons(String url) => HttpClient()
+Future<Iterable<Album>> getAlbum(String url) => HttpClient()
     .getUrl(Uri.parse(url))
     .then((req) => req.close())
     .then((resp) => resp.transform(utf8.decoder).join())
     .then((str) => json.decode(str) as List<dynamic>)
-    .then((list) => list.map((e) => Person.fromJson(e)));
-
-//https://youtu.be/Mn254cnduOY?t=3084
-//defin the result of the bloc
-@immutable
-class FetchResult {
-  final Iterable<Person> persons;
-  final bool isRetrievedFromCache;
-
-  const FetchResult(
-      {required this.persons, required this.isRetrievedFromCache});
-
-//determine how it is displayed in the logged
-  @override
-  String toString() =>
-      'FetchResult ( isRetrievedFromCache= $isRetrievedFromCache, persons =$persons)';
-}
+    .then((list) => list.map((e) => Album.fromJson(e)));
 
 //Write the bloc header
 //https://youtu.be/Mn254cnduOY?t=3271
-class PersonsBloc extends Bloc<LoadAction, FetchResult?> {
-  //https://youtu.be/Mn254cnduOY?t=3385
-  //cache in the bloc
-  final Map<PersonUrl, Iterable<Person>> _cache = {};
-
-  PersonsBloc() : super(null) {
-    //https://youtu.be/Mn254cnduOY?t=3422
-    //Handle the loadpersonaaction in the constructor
-    on<LoadPersonaAction>(
-      //event is the input, emit is the output
-      (event, emit) async {
-        final url = event.url;
-        if (_cache.containsKey(url)) {
-          //we have the value in the cache
-          final cachedPersons = _cache[url]!;
-          final result = FetchResult(
-            persons: cachedPersons,
-            isRetrievedFromCache: true,
-          );
-          emit(result);
-        } else {
-          final persons = await getPersons(url.urlString);
-          _cache[url] = persons;
-          final result = FetchResult(
-            persons: persons,
-            isRetrievedFromCache: false,
-          );
-          emit(result);
-        }
-      },
-    );
-  }
-}
 
 //https://youtu.be/Mn254cnduOY?t=3893
 //because of this, we can write this code letter on 'final person = persons[index]!;'
@@ -179,8 +69,9 @@ class HomePage extends StatelessWidget {
               TextButton(
                 onPressed: () {
                   //https://youtu.be/Mn254cnduOY?t=4199
-                  context.read<PersonsBloc>().add(const LoadPersonaAction(
-                        url: PersonUrl.persons1,
+                  context.read<AlbumBloc>().add(const LoadAlbumAction(
+                        url: album1Url,
+                        loader: getAlbum,
                       ));
                 },
                 child: const Text('Load json #1'),
@@ -188,34 +79,38 @@ class HomePage extends StatelessWidget {
               TextButton(
                 onPressed: () {
                   //https://youtu.be/Mn254cnduOY?t=4199
-                  context.read<PersonsBloc>().add(const LoadPersonaAction(
-                        url: PersonUrl.persons2,
+                  context.read<AlbumBloc>().add(const LoadAlbumAction(
+                        url: album2Url,
+                        //!Shouldn't we load the URL for this this such as getAlbum(album2Url)?
+                        //!it is already putting in the url from album_bloc 67-  final albums = await loader(url);
+                        loader: getAlbum,
                       ));
                 },
+                //TODO: Will not load this one because it is using the same dataset and we have the cache looks for changes
                 child: const Text('Load json #2'),
               ),
             ],
           ),
           //https://youtu.be/Mn254cnduOY?t=4323
-          BlocBuilder<PersonsBloc, FetchResult?>(
+          BlocBuilder<AlbumBloc, FetchResult?>(
             buildWhen: (previousResult, currentResult) {
-              return previousResult?.persons != currentResult?.persons;
+              return previousResult?.album != currentResult?.album;
             },
             builder: ((context, fetchResult) {
               fetchResult?.log();
-              final persons = fetchResult?.persons;
-              if (persons == null) {
+              final albums = fetchResult?.album;
+              if (albums == null) {
                 return const SizedBox();
               }
               //https://youtu.be/PD0eAXLd5ls?t=6
               return Expanded(
                 child: ListView.builder(
-                  itemCount: persons.length,
+                  itemCount: albums.length,
                   itemBuilder: (context, index) {
-                    final person = persons[index]!;
-                    if (person.title != null) {
+                    final album = albums[index]!;
+                    if (album.title != null) {
                       return ListTile(
-                        title: Text(person.title),
+                        title: Text(album.title),
                       );
                     }
                     return const ListTile(
